@@ -1,9 +1,7 @@
-﻿# Check Forex Rate Backend
+# Check Forex Rate Backend
 
-FastAPI + Postgres backend for signup/login, email verification, and user settings.
 
 ## Features
-- Email signup + verification
 - Login with JWT
 - Store user settings (currencies, thresholds, base currency)
 - SendGrid email delivery (Single Sender OK for dev)
@@ -24,5 +22,4 @@ FastAPI + Postgres backend for signup/login, email verification, and user settin
 - Build: `pip install -r requirements.txt`
 - Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 
-## Email Verification
 Uses SendGrid Single Sender by default. Upgrade to a domain later by setting SPF/DKIM/DMARC.
