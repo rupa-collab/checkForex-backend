@@ -9,7 +9,6 @@ from app.db import get_session, init_db
 from app.models import User, VerificationToken, UserSettings
 from app.schemas import SignupRequest, LoginRequest, TokenResponse, SettingsResponse, SettingsUpdate
 from app.security import hash_password, verify_password, create_access_token
-from app.email import send_verification_email
 from app.settings import settings
 
 app = FastAPI(title="Check Forex Rate Backend")
@@ -54,24 +53,12 @@ def signup(payload: SignupRequest, session: Session = Depends(get_session)):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    user = User(email=payload.email, password_hash=hash_password(payload.password))
+    user = User(email=payload.email, password_hash=hash_password(payload.password), is_verified=True)
     session.add(user)
     session.commit()
     session.refresh(user)
 
-    token = secrets.token_urlsafe(32)
-    verify = VerificationToken(
-        user_id=user.id,
-        token=token,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
-    )
-    session.add(verify)
-    session.commit()
-
-    verify_url = f"{settings.APP_BASE_URL}/auth/verify?token={token}"
-    send_verification_email(payload.email, verify_url)
-
-    return {"message": "Signup successful. Please verify your email."}
+    return {"message": "Signup successful."}
 
 
 @app.get("/auth/verify")
@@ -107,11 +94,7 @@ def verify_email(token: str, session: Session = Depends(get_session)):
 def login(payload: LoginRequest, session: Session = Depends(get_session)):
     user = session.exec(select(User).where(User.email == payload.email)).first()
     if not user or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    if not user.is_verified:
-        raise HTTPException(status_code=403, detail="Email not verified")
-
-    token = create_access_token(user.email)
+        raise HTTPException(status_code=401, detail="Invalid credentials")token = create_access_token(user.email)
     return TokenResponse(access_token=token)
 
 
