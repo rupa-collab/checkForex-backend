@@ -1,4 +1,4 @@
-﻿from logging.config import fileConfig
+from logging.config import fileConfig
 from alembic import context
 from sqlmodel import SQLModel
 from app.settings import settings
@@ -10,6 +10,8 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = SQLModel.metadata
+
+SCHEMA = "forexratedb"
 
 
 def get_url():
@@ -23,6 +25,9 @@ def run_migrations_offline():
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        version_table_schema=SCHEMA,
+        include_schemas=True,
+        schema_translate_map={"public": SCHEMA},
     )
 
     with context.begin_transaction():
@@ -40,6 +45,9 @@ def run_migrations_online():
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            version_table_schema=SCHEMA,
+            include_schemas=True,
+            schema_translate_map={"public": SCHEMA},
         )
 
         with context.begin_transaction():
