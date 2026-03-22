@@ -42,7 +42,9 @@ def hash_otp(email: str, otp: str) -> str:
 
 
 def generate_otp() -> str:
-    return f"{secrets.randbelow(1000000):06d}"\r\ndef get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)) -> User:
+    return f"{secrets.randbelow(1000000):06d}"
+
+def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)) -> User:
     try:
         payload = __import__("jose").jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
         email = payload.get("sub")
@@ -79,8 +81,7 @@ def request_otp(payload: RequestOtp, session: Session = Depends(get_session)):
 
 
 @app.post("/auth/verify-otp", response_model=TokenResponse)
-def verify_otp(payload: VerifyOtp, session: Session = Depends(get_session)):
-    record = session.exec(select(OtpCode).where(OtpCode.email == payload.email)).first()
+def verify_otp(payload: VerifyOtp, session: Session = Depends(get_session)):\r\n    ensure_password_length(payload.password)\r\n    record = session.exec(select(OtpCode).where(OtpCode.email == payload.email)).first()
     if not record:
         raise HTTPException(status_code=400, detail="OTP not found")
     if record.used_at is not None:
@@ -101,9 +102,12 @@ def verify_otp(payload: VerifyOtp, session: Session = Depends(get_session)):
     session.commit()
 
     token = create_access_token(user.email)
-    return TokenResponse(access_token=token)\r\n\r\n@app.post("/auth/signup")
-def signup(payload: SignupRequest, session: Session = Depends(get_session)):
-    existing = session.exec(select(User).where(User.email == payload.email)).first()
+    return TokenResponse(access_token=token)
+
+
+
+@app.post("/auth/signup")
+def signup(payload: SignupRequest, session: Session = Depends(get_session)):\r\n    ensure_password_length(payload.password)\r\n    existing = session.exec(select(User).where(User.email == payload.email)).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -145,8 +149,7 @@ def verify_email(token: str, session: Session = Depends(get_session)):
 
 
 @app.post("/auth/login", response_model=TokenResponse)
-def login(payload: LoginRequest, session: Session = Depends(get_session)):
-    user = session.exec(select(User).where(User.email == payload.email)).first()
+def login(payload: LoginRequest, session: Session = Depends(get_session)):\r\n    ensure_password_length(payload.password)\r\n    user = session.exec(select(User).where(User.email == payload.email)).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_access_token(user.email)
