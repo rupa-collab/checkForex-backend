@@ -1,13 +1,15 @@
 from datetime import datetime, timedelta, timezone
+import hashlib
 import secrets
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy import delete
 from sqlmodel import Session, select
 
 from app.db import get_session, init_db
-from app.models import User, VerificationToken, UserSettings
-from app.schemas import SignupRequest, LoginRequest, TokenResponse, SettingsResponse, SettingsUpdate
+from app.models import User, VerificationToken, UserSettings, OtpCode
+from app.schemas import SignupRequest, LoginRequest, TokenResponse, SettingsResponse, SettingsUpdate, RequestOtp, VerifyOtp
 from app.security import hash_password, verify_password, create_access_token
 from app.settings import settings
 
@@ -33,7 +35,14 @@ def on_startup():
     init_db()
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)) -> User:
+
+def hash_otp(email: str, otp: str) -> str:
+    raw = (settings.JWT_SECRET + email.lower().strip() + otp).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def generate_otp() -> str:
+    return f"{secrets.randbelow(1000000):06d}"\r\ndef get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)) -> User:
     try:
         payload = __import__("jose").jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
         email = payload.get("sub")
@@ -47,7 +56,52 @@ def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Dep
     return user
 
 
-@app.post("/auth/signup")
+
+@app.post("/auth/request-otp")
+def request_otp(payload: RequestOtp, session: Session = Depends(get_session)):
+    existing = session.exec(select(User).where(User.email == payload.email)).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    session.exec(delete(OtpCode).where(OtpCode.email == payload.email))
+
+    otp = generate_otp()
+    record = OtpCode(
+        email=payload.email,
+        otp_hash=hash_otp(payload.email, otp),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=5)
+    )
+    session.add(record)
+    session.commit()
+
+    # Local/dev mode: return OTP in response
+    return {"message": "OTP generated", "otp": otp}
+
+
+@app.post("/auth/verify-otp", response_model=TokenResponse)
+def verify_otp(payload: VerifyOtp, session: Session = Depends(get_session)):
+    record = session.exec(select(OtpCode).where(OtpCode.email == payload.email)).first()
+    if not record:
+        raise HTTPException(status_code=400, detail="OTP not found")
+    if record.used_at is not None:
+        raise HTTPException(status_code=400, detail="OTP already used")
+    if record.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="OTP expired")
+
+    if record.otp_hash != hash_otp(payload.email, payload.otp):
+        record.attempts += 1
+        session.add(record)
+        session.commit()
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+
+    user = User(email=payload.email, password_hash=hash_password(payload.password), is_verified=True)
+    session.add(user)
+    record.used_at = datetime.now(timezone.utc)
+    session.add(record)
+    session.commit()
+
+    token = create_access_token(user.email)
+    return TokenResponse(access_token=token)\r\n\r\n@app.post("/auth/signup")
 def signup(payload: SignupRequest, session: Session = Depends(get_session)):
     existing = session.exec(select(User).where(User.email == payload.email)).first()
     if existing:
@@ -94,7 +148,8 @@ def verify_email(token: str, session: Session = Depends(get_session)):
 def login(payload: LoginRequest, session: Session = Depends(get_session)):
     user = session.exec(select(User).where(User.email == payload.email)).first()
     if not user or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid credentials")token = create_access_token(user.email)
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = create_access_token(user.email)
     return TokenResponse(access_token=token)
 
 

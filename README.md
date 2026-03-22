@@ -26,3 +26,6 @@ Uses SendGrid Single Sender by default. Upgrade to a domain later by setting SPF
 
 ## FX Provider (App)
 The Android app uses currencylayer (HTTP). Cleartext is allowed only for api.currencylayer.com via network security config.
+
+## OTP (Local Dev)
+Endpoints: /auth/request-otp and /auth/verify-otp. The OTP is returned in the response for local testing.

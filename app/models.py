@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 from typing import Optional
 from sqlmodel import Field, SQLModel
 
@@ -26,3 +26,12 @@ class UserSettings(SQLModel, table=True):
     thresholds_json: str = "{}"
     api_usage_count: int = 0
     api_usage_month: str = ""
+
+class OtpCode(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(index=True)
+    otp_hash: str
+    expires_at: datetime
+    attempts: int = 0
+    used_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

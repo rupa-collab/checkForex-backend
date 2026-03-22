@@ -1,4 +1,4 @@
-﻿from typing import Optional
+from typing import Optional
 from pydantic import BaseModel, EmailStr
 
 class SignupRequest(BaseModel):
@@ -26,3 +26,11 @@ class SettingsUpdate(BaseModel):
     tracked_currencies: Optional[str] = None
     tracked_metals: Optional[str] = None
     thresholds_json: Optional[str] = None
+
+class RequestOtp(BaseModel):
+    email: EmailStr
+
+class VerifyOtp(BaseModel):
+    email: EmailStr
+    password: str
+    otp: str
