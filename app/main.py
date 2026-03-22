@@ -75,7 +75,7 @@ def request_otp(payload: RequestOtp, session: Session = Depends(get_session)):
     session.commit()
 
     # Local/dev mode: return OTP in response
-    return {"message": "OTP generated", "otp": otp}
+    return {"message": "OTP generated", "otp": otp} if settings.DEV_OTP_MODE else {"message": "OTP generated"}
 
 
 @app.post("/auth/verify-otp", response_model=TokenResponse)
