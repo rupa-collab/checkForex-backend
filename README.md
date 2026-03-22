@@ -23,3 +23,6 @@
 - Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 
 Uses SendGrid Single Sender by default. Upgrade to a domain later by setting SPF/DKIM/DMARC.
+
+## FX Provider (App)
+The Android app uses currencylayer (HTTP). Cleartext is allowed only for api.currencylayer.com via network security config.
